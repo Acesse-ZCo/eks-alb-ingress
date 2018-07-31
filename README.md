@@ -1,27 +1,31 @@
 # eks-alb-ingress	
 
-This document walks you through Amazon EKS with [CoreOS ALB ingress conbtroller](https://github.com/coreos/alb-ingress-controller).
+This document walks you through Amazon EKS with [AWS ALB Ingress](https://github.com/kubernetes-sigs/aws-alb-ingress-controller).
 
 
 
-### Getting Started
+# Getting Started
 
-Attach extra IAM policy allowing all **elasticloadbalancing:*** method to the EC2 node instance role. The ingress controller will need 
+#### Attaching extra IAM inline policies
+
+Download the `am-policy.json` 
 
 ```
-aws iam put-role-policy --role-name <EC2_NODE_INSTANCE_ROLE> --policy-name elb-allow-all --policy-document file://elb-inline-policy.json
+wget https://raw.githubusercontent.com/kubernetes-sigs/aws-alb-ingress-controller/3e303f712ddba6479a842b73881c94b71e0809d9/examples/iam-policy.json
 ```
 
+Manual attach it to your EC2 Node Instance Role.
 
-
-
+```
+aws iam put-role-policy --role-name <EC2_NODE_INSTANCE_ROLE> --policy-name alb-ingress-extra --policy-document file://iam-policy.json
+```
 
 
 
 Install the default-http-backend
 
 ```bash
-$ kubectl apply -f https://raw.githubusercontent.com/coreos/alb-ingress-controller/master/examples/default-backend.yaml
+$ kubectl apply -f default-backend.yaml
 ```
 
 modify the `alb-ingress-controller.yaml` file:
@@ -116,12 +120,26 @@ spec:
 find your EKS NodeSecurityGroup
 
 ```bash
-$ aws ec2 describe-security-groups --query "SecurityGroups[?VpcId=='vpc-e692c79f']|[?contains(GroupName, 'NodeSecurityGroup')].GroupId"
-
+$ aws ec2 describe-security-groups --query "SecurityGroups[?VpcId=='vpc-666d9a1e']|[?contains(GroupName, 'NodeSecurityGroup')].GroupId"
 [
-    "sg-49c86737"
+    "sg-2f25645f"
 ]
 ```
+
+create another SecurityGroup for your ALB with HTTP/HTTPS wide open:
+
+```
+$ aws ec2 create-security-group --vpc-id vpc-666d9a1e --group-name alb-sg --description "ALB 80 443 open"
+{
+    "GroupId": "sg-54391324"
+}
+
+$ aws ec2 authorize-security-group-ingress --group-id sg-54391324 --port 80 --protocol tcp --cidr 0.0.0.0/0
+$ aws ec2 authorize-security-group-ingress --group-id sg-54391324 --port 443 --protocol tcp --cidr 0.0.0.0/0
+
+```
+
+Finally, input `sg-2f25645f,sg-54391324` as the value of `alb.ingress.kubernetes.io/security-groups:`
 
 
 
@@ -147,8 +165,8 @@ Describe your ingress resource
 $ kubectl describe ing/webapp-alb-ingress
 Name:             webapp-alb-ingress
 Namespace:        default
-Address:          mycluster-default-webappal-9895-232573660.us-west-2.elb.amazonaws.com
-Default backend:  default-http-backend:80 (192.168.109.73:8080)
+Address:          b0ae30d6-default-webappalb-9895-847304586.us-west-2.elb.amazonaws.com
+Default backend:  default-http-backend:80 (192.168.236.106:8080)
 Rules:
   Host  Path  Backends
   ----  ----  --------
@@ -156,18 +174,25 @@ Rules:
         /greeting   webapp-service:80 (<none>)
         /           caddy-service:80 (<none>)
 Annotations:
+  alb.ingress.kubernetes.io/security-groups:         sg-2f25645f
+  alb.ingress.kubernetes.io/subnets:                 subnet-c21954bb, subnet-1bb7d850, subnet-ce481794
+  kubectl.kubernetes.io/last-applied-configuration:  {"apiVersion":"extensions/v1beta1","kind":"Ingress","metadata":{"annotations":{"alb.ingress.kubernetes.io/listen-ports":"[{\"HTTP\":80,\"HTTPS\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/security-groups":"sg-2f25645f","alb.ingress.kubernetes.io/subnets":"subnet-c21954bb, subnet-1bb7d850, subnet-ce481794"},"labels":{"app":"webapp-service"},"name":"webapp-alb-ingress","namespace":"default"},"spec":{"rules":[{"http":{"paths":[{"backend":{"serviceName":"webapp-service","servicePort":80},"path":"/greeting"},{"backend":{"serviceName":"caddy-service","servicePort":80},"path":"/"}]}}]}}
+
+  alb.ingress.kubernetes.io/listen-ports:  [{"HTTP":80,"HTTPS": 443}]
+  alb.ingress.kubernetes.io/scheme:        internet-facing
 Events:
   Type    Reason  Age              From                Message
   ----    ------  ----             ----                -------
-  Normal  CREATE  2m               ingress-controller  Ingress default/webapp-alb-ingress
-  Normal  CREATE  2m               ingress-controller  mycluster-default-webappal-9895 created
-  Normal  CREATE  2m               ingress-controller  mycluster-32235-HTTP-7c52fdc target group created
-  Normal  CREATE  2m               ingress-controller  mycluster-30214-HTTP-7c52fdc target group created
-  Normal  CREATE  2m               ingress-controller  80 listener created
-  Normal  CREATE  2m (x2 over 2m)  ingress-controller  1 rule created
-  Normal  CREATE  2m (x2 over 2m)  ingress-controller  2 rule created
-  Normal  CREATE  2m               ingress-controller  443 listener created
+  Normal  CREATE  1m               ingress-controller  Ingress default/webapp-alb-ingress
+  Normal  CREATE  1m               ingress-controller  b0ae30d6-default-webappalb-9895 created
+  Normal  CREATE  1m               ingress-controller  b0ae30d6-32157-HTTP-e65397d target group created
+  Normal  CREATE  1m               ingress-controller  b0ae30d6-32064-HTTP-e65397d target group created
+  Normal  CREATE  1m               ingress-controller  80 listener created
+  Normal  CREATE  1m (x2 over 1m)  ingress-controller  1 rule created
+  Normal  CREATE  1m (x2 over 1m)  ingress-controller  2 rule created
+  Normal  CREATE  1m               ingress-controller  443 listener created
   Normal  UPDATE  1m               ingress-controller  Ingress default/webapp-alb-ingress
+  Normal  MODIFY  24s              ingress-controller  b0ae30d6-default-webappalb-9895 tags modified
 ```
 
 

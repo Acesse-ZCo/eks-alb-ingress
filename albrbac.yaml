@@ -48,7 +48,7 @@ roleRef:
   name: alb-ingress-controller
 subjects:
   - kind: ServiceAccount
-    name: saingress
+    name: alb-ingress
     namespace: kube-system
 ---
 apiVersion: v1
@@ -56,5 +56,5 @@ kind: ServiceAccount
 metadata:
   labels:
     app: alb-ingress-controller
-  name: saingress
+  name: alb-ingress
   namespace: kube-system
