@@ -39,7 +39,6 @@ spec:
         # annotation kubernetes.io/ingress.class: "alb" are respected by the controller. You may
         # choose any class you'd like for this controller to respect.
         - --ingress-class=alb
-        - --default-backend-service=kube-system/default-http-backend
         env:
           # AWS region this ingress controller will operate in.
           # List of regions:
@@ -80,7 +79,7 @@ spec:
               apiVersion: v1
               fieldPath: metadata.namespace
         # Repository location of the ALB Ingress Controller.
-        image: quay.io/coreos/alb-ingress-controller:1.0-beta.4
+        image: quay.io/coreos/alb-ingress-controller:1.0-beta.5
         imagePullPolicy: Always
         name: server
         resources: {}

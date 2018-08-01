@@ -8,10 +8,10 @@ This document walks you through Amazon EKS with [AWS ALB Ingress](https://github
 
 #### Attaching extra IAM inline policies
 
-Download the `am-policy.json` 
+Download the `iam-policy.json` 
 
 ```
-wget https://raw.githubusercontent.com/kubernetes-sigs/aws-alb-ingress-controller/3e303f712ddba6479a842b73881c94b71e0809d9/examples/iam-policy.json
+wget https://raw.githubusercontent.com/kubernetes-sigs/aws-alb-ingress-controller/master/examples/iam-policy.json
 ```
 
 Manual attach it to your EC2 Node Instance Role.
@@ -21,12 +21,6 @@ aws iam put-role-policy --role-name <EC2_NODE_INSTANCE_ROLE> --policy-name alb-i
 ```
 
 
-
-Install the default-http-backend
-
-```bash
-$ kubectl apply -f default-backend.yaml
-```
 
 modify the `alb-ingress-controller.yaml` file:
 
